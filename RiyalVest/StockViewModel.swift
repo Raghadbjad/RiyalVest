@@ -1,348 +1,184 @@
-//
-//  StockViewModel.swift
-//  RiyalVest
-//
-//  Created by Sumayah Alqahtani on 08/09/1446 AH.
-//
-
-//import Foundation
-//import Combine
-//
-//class StockViewModel: ObservableObject {
-//    @Published var stocks: [Stock] = []
-//    private var cancellables = Set<AnyCancellable>()
-//    private var timer: Timer?
-//    
-//    let apiKey = "ecf6db49df374c2b97930d9569bae2ae"
-//    let symbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "META"]
-//    
-//    private var stockData: [String: StockResponse] = [:]
-//    
-//    init() {
-//        startTimer()
-//    }
-//    
-//    func startTimer() {
-//        timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
-//            Task {
-//                await self.fetchStocks()
-//            }
-//        }
-//    }
-//    
-//    func fetchStocks() async {
-//        for symbol in symbols {
-//            let urlString = "https://api.twelvedata.com/time_series?symbol=\(symbol)&interval=5min&apikey=\(apiKey)&country=United States"
-//            
-//            guard let url = URL(string: urlString) else { return }
-//            
-//            do {
-//                let (data, _) = try await URLSession.shared.data(from: url)
-//                let response = try JSONDecoder().decode(StockResponse.self, from: data)
-//                
-//                if response.status == "ok", let stock = response.toStock(name: await fetchStockName(for: symbol)) {
-//                    DispatchQueue.main.async {
-//                        if let index = self.stocks.firstIndex(where: { $0.symbol == stock.symbol }) {
-//                            self.stocks[index] = stock
-//                        } else {
-//                            self.stocks.append(stock)
-//                        }
-//                    }
-//                } else {
-//                    print("Failed to fetch data for symbol: \(symbol)")
-//                }
-//            } catch {
-//                print("Error fetching data: \(error)")
-//            }
-//        }
-//    }
-//    
-//    func fetchStockName(for symbol: String) async -> String {
-//        let urlString = "https://api.twelvedata.com/stocks?symbol=\(symbol)&apikey=\(apiKey)&country=United States"
-//        
-//        guard let url = URL(string: urlString) else { return "" }
-//        
-//        do {
-//            let (data, _) = try await URLSession.shared.data(from: url)
-//            let stockResponse = try JSONDecoder().decode(StockNameResponse.self, from: data)
-//            return stockResponse.data.first?.name ?? ""
-//        } catch {
-//            print("Error fetching stock name: \(error)")
-//            return ""
-//        }
-//    }
-//}
-//
-//struct StockResponse: Codable {
-//    let status: String?
-//    let meta: Meta?
-//    let values: [Value]?
-//    
-//    func toStock(name: String) -> Stock? {
-//        guard let meta = meta, let values = values, let latestValue = values.first else {
-//            return nil
-//        }
-//        let previousValue = values.count > 1 ? values[1] : latestValue
-//        
-//        // تقريب السعر إلى خانتين بعد الفاصلة
-//        let closePrice = Double(latestValue.close) ?? 0
-//        let roundedPrice = String(format: "%.2f", closePrice)
-//        
-//        let change = (Double(latestValue.close) ?? 0) - (Double(previousValue.close) ?? 0)
-//        let changePercent = (change / (Double(previousValue.close) ?? 1)) * 100
-//        
-//        return Stock(
-//            symbol: meta.symbol,
-//            price: roundedPrice, // استخدام السعر المقرب
-//            change: String(format: "%.2f", change),
-//            changePercent: String(format: "%.2f%%", changePercent),
-//            name: name
-//        )
-//    }
-//}
-//
-//struct StockNameResponse: Codable {
-//    let status: String
-//    let data: [StockData]
-//}
-//
-//struct StockData: Codable {
-//    let symbol: String
-//    let name: String
-//}
-//
-//struct Meta: Codable {
-//    let symbol: String
-//}
-//
-//struct Value: Codable {
-//    let datetime: String
-//    let open: String
-//    let high: String
-//    let low: String
-//    let close: String
-//    let volume: String
-//}
-//
-//struct Stock: Identifiable {
-//    let id = UUID()
-//    let symbol: String
-//    let price: String
-//    let change: String
-//    let changePercent: String
-//    let name: String // إضافة حقل اسم السهم
-//}
 import Foundation
 import Combine
 import WidgetKit
 
-//class StockViewModel: ObservableObject {
-//    @Published var stocks: [Stock] = []
-//    @Published var lastFetchedStocks: [Stock] = [] // آخر بيانات تم جلبها بنجاح
-//    private var cancellables = Set<AnyCancellable>()
-//    private var timer: Timer?
-//    
-//    let apiKey = "ecf6db49df374c2b97930d9569bae2ae"
-//    let symbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "META"]
-//    
-//    init() {
-//        startTimer()
-//    }
-//    
-//    func startTimer() {
-//        timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in // 5 دقائق
-//            Task {
-//                await self.fetchStocks()
-//            }
-//        }
-//    }
-//    
-//    func fetchStocks() async {
-//        for symbol in symbols {
-//            let urlString = "https://api.twelvedata.com/time_series?symbol=\(symbol)&interval=5min&apikey=\(apiKey)&country=United States"
-//            guard let url = URL(string: urlString) else { return }
-//            
-//            do {
-//                let (data, _) = try await URLSession.shared.data(from: url)
-//                let response = try JSONDecoder().decode(StockResponse.self, from: data)
-//                
-//                if response.status == "ok", let stock = response.toStock(name: await fetchStockName(for: symbol)) {
-//                    DispatchQueue.main.async {
-//                        if let index = self.stocks.firstIndex(where: { $0.symbol == stock.symbol }) {
-//                            self.stocks[index] = stock
-//                        } else {
-//                            self.stocks.append(stock)
-//                        }
-//                        // تحديث آخر بيانات تم جلبها بنجاح
-//                        self.lastFetchedStocks = self.stocks
-//                    }
-//                    // طباعة رسالة نجاح جلب البيانات الحية
-//                    print("Successfully fetched live data for \(symbol).")
-//                } else if response.status == "error" && response.code == 429 {
-//                    // إذا وصلنا إلى الحد اليومي، نعرض آخر بيانات تم جلبها بنجاح
-//                    DispatchQueue.main.async {
-//                        self.stocks = self.lastFetchedStocks
-//                        print("Rate limit exceeded. Displaying last fetched data.")
-//                    }
-//                    
-//                    // انتظر لمدة دقيقة (60 ثانية) ثم أعد المحاولة
-//                    try await Task.sleep(nanoseconds: 60 * 1_000_000_000) // انتظر 60 ثانية
-//                    print("Retrying to fetch live data after waiting for 60 seconds...")
-//                    await fetchStocks() // إعادة المحاولة
-//                }
-//            } catch {
-//                print("Error fetching data: \(error)")
-//            }
-//        }
-//        
-//        let topStocks = Array(stocks.prefix(5))
-//               saveTopStocks(topStocks)
-//        
-//        
-//        
-//    }
-//    
-//    func fetchStockName(for symbol: String) async -> String {
-//        let urlString = "https://api.twelvedata.com/stocks?symbol=\(symbol)&apikey=\(apiKey)&country=United States"
-//        guard let url = URL(string: urlString) else { return "" }
-//        
-//        do {
-//            let (data, _) = try await URLSession.shared.data(from: url)
-//            let stockResponse = try JSONDecoder().decode(StockNameResponse.self, from: data)
-//            return stockResponse.data.first?.name ?? ""
-//        } catch {
-//            print("Error fetching stock name: \(error)")
-//            return ""
-//        }
-//    }
-//    
-//    
-//    // حفظ أعلى 5 أسهم في UserDefaults
-//    func saveTopStocks(_ stocks: [Stock]) {
-//        let sharedDefaults = UserDefaults(suiteName: "group.com.yourapp.group")
-//        if let encodedData = try? JSONEncoder().encode(stocks) {
-//            sharedDefaults?.set(encodedData, forKey: "topStocks")
-//        }
-//        
-//        WidgetCenter.shared.reloadAllTimelines()
-//    
-//    }
-//    
-//
-//
-//    
-//}
+@MainActor
+final class StockViewModel: ObservableObject {
+    @Published private(set) var stocks: [Stock] = []
+    @Published private(set) var lastFetchedStocks: [Stock] = []
 
-import Foundation
-import Combine
-import WidgetKit
+    private let symbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "META"]
+    private let apiKey = "ecf6db49df374c2b97930d9569bae2ae"
+    private let refreshInterval: TimeInterval = 300
 
-class StockViewModel: ObservableObject {
-    @Published var stocks: [Stock] = []
-    @Published var lastFetchedStocks: [Stock] = [] // آخر بيانات تم جلبها بنجاح
-    private var cancellables = Set<AnyCancellable>()
     private var timer: Timer?
-    
-    let apiKey = "ecf6db49df374c2b97930d9569bae2ae"
-    let symbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "META"]
-    
+    private var isFetching = false
+    private var stockNamesCache: [String: String] = [:]
+
     init() {
         startTimer()
     }
-    
+
     func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in // تحديث كل 5 دقائق
-            Task {
-                await self.fetchStocks()
+        guard timer == nil else { return }
+
+        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                await self?.fetchStocks()
             }
         }
     }
-    
+
     func fetchStocks() async {
+        // Prevent the timer and the initial screen load from starting overlapping batches.
+        guard !isFetching else { return }
+        isFetching = true
+        defer { isFetching = false }
+
         for symbol in symbols {
-            let urlString = "https://api.twelvedata.com/time_series?symbol=\(symbol)&interval=5min&apikey=\(apiKey)&country=United States"
-            guard let url = URL(string: urlString) else { return }
-            
+            guard !Task.isCancelled else { return }
+
             do {
-                let (data, _) = try await URLSession.shared.data(from: url)
+                let data = try await requestData(endpoint: "time_series", symbol: symbol)
                 let response = try JSONDecoder().decode(StockResponse.self, from: data)
-                
-                if response.status == "ok", let stock = response.toStock(name: await fetchStockName(for: symbol)) {
-                    DispatchQueue.main.async {
-                        if let index = self.stocks.firstIndex(where: { $0.symbol == stock.symbol }) {
-                            self.stocks[index] = stock
-                        } else {
-                            self.stocks.append(stock)
-                        }
-                        self.lastFetchedStocks = self.stocks
-                    }
-                    print("Successfully fetched live data for \(symbol).")
-                } else if response.status == "error" && response.code == 429 {
-                    DispatchQueue.main.async {
-                        self.stocks = self.lastFetchedStocks
-                        print("Rate limit exceeded. Displaying last fetched data.")
-                    }
-                    
-                    try await Task.sleep(nanoseconds: 60 * 1_000_000_000)
-                    print("Retrying to fetch live data after waiting for 60 seconds...")
-                    await fetchStocks()
+
+                if response.code == 429 {
+                    // Keep the last successful values. Do not recursively retry and create
+                    // an unbounded number of API requests.
+                    stocks = lastFetchedStocks
+                    print("Twelve Data rate limit reached. Keeping the last successful values.")
+                    return
                 }
+
+                guard response.status == "ok" else {
+                    print("Twelve Data returned an unsuccessful response for \(symbol): \(response.message ?? "Unknown API error").")
+                    continue
+                }
+
+                let name = await fetchStockName(for: symbol)
+                guard let stock = response.toStock(name: name) else {
+                    print("Could not decode usable price data for \(symbol).")
+                    continue
+                }
+
+                if let index = stocks.firstIndex(where: { $0.symbol == stock.symbol }) {
+                    stocks[index] = stock
+                } else {
+                    stocks.append(stock)
+                }
+
+                lastFetchedStocks = stocks
             } catch {
-                print("Error fetching data: \(error)")
+                print("Failed to fetch \(symbol): \(error.localizedDescription)")
             }
         }
-        
-        let topStocks = Array(stocks.prefix(3))
-        saveTopStocks(topStocks)
+
+        saveTopStocks(Array(stocks.prefix(3)))
     }
-    
-    func fetchStockName(for symbol: String) async -> String {
-        let urlString = "https://api.twelvedata.com/stocks?symbol=\(symbol)&apikey=\(apiKey)&country=United States"
-        guard let url = URL(string: urlString) else { return "" }
-        
+
+    private func requestData(endpoint: String, symbol: String) async throws -> Data {
+        guard var components = URLComponents(string: "https://api.twelvedata.com/\(endpoint)") else {
+            throw StockAPIError.invalidURL
+        }
+
+        components.queryItems = [
+            URLQueryItem(name: "symbol", value: symbol),
+            URLQueryItem(name: "apikey", value: apiKey),
+            URLQueryItem(name: "country", value: "United States")
+        ]
+
+        if endpoint == "time_series" {
+            components.queryItems?.append(URLQueryItem(name: "interval", value: "5min"))
+        }
+
+        guard let url = components.url else {
+            throw StockAPIError.invalidURL
+        }
+
+        let (data, response) = try await URLSession.shared.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw StockAPIError.invalidHTTPResponse
+        }
+
+        return data
+    }
+
+    private func fetchStockName(for symbol: String) async -> String {
+        if let cachedName = stockNamesCache[symbol] {
+            return cachedName
+        }
+
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let stockResponse = try JSONDecoder().decode(StockNameResponse.self, from: data)
-            return stockResponse.data.first?.name ?? ""
+            let data = try await requestData(endpoint: "stocks", symbol: symbol)
+            let response = try JSONDecoder().decode(StockNameResponse.self, from: data)
+
+            guard let name = response.data.first?.name, !name.isEmpty else {
+                return symbol
+            }
+
+            stockNamesCache[symbol] = name
+            return name
         } catch {
-            print("Error fetching stock name: \(error)")
-            return ""
+            print("Failed to fetch company name for \(symbol): \(error.localizedDescription)")
+            return symbol
         }
     }
-    
-    func saveTopStocks(_ stocks: [Stock]) {
-        let sharedDefaults = UserDefaults(suiteName: "group.raghad.RiyalVest")
-        if let encodedData = try? JSONEncoder().encode(stocks) {
-            sharedDefaults?.set(encodedData, forKey: "topStocks")
+
+    private func saveTopStocks(_ stocks: [Stock]) {
+        guard let sharedDefaults = UserDefaults(suiteName: "group.raghad.RiyalVest"),
+              let encodedData = try? JSONEncoder().encode(stocks) else {
+            print("Unable to save top stocks to the shared App Group.")
+            return
         }
-        
+
+        sharedDefaults.set(encodedData, forKey: "topStocks")
         WidgetCenter.shared.reloadAllTimelines()
     }
 }
 
+private enum StockAPIError: LocalizedError {
+    case invalidURL
+    case invalidHTTPResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "The stock API URL could not be created."
+        case .invalidHTTPResponse:
+            return "The stock API returned an invalid HTTP response."
+        }
+    }
+}
 
 struct StockResponse: Codable {
-    let code: Int? // كود الخطأ
-    let message: String? // رسالة الخطأ
-    let status: String? // حالة الطلب (مثلاً "ok" أو "error")
+    let code: Int?
+    let message: String?
+    let status: String?
     let meta: Meta?
     let values: [Value]?
-    
+
     func toStock(name: String) -> Stock? {
-        guard status == "ok", let meta = meta, let values = values, let latestValue = values.first else {
+        guard status == "ok",
+              let meta,
+              let values,
+              let latestValue = values.first,
+              let latestPrice = Double(latestValue.close) else {
             return nil
         }
+
         let previousValue = values.count > 1 ? values[1] : latestValue
-        
-        let closePrice = Double(latestValue.close) ?? 0
-        let roundedPrice = String(format: "%.2f", closePrice)
-        
-        let change = (Double(latestValue.close) ?? 0) - (Double(previousValue.close) ?? 0)
-        let changePercent = (change / (Double(previousValue.close) ?? 1)) * 100
-        
+        guard let previousPrice = Double(previousValue.close) else {
+            return nil
+        }
+
+        let change = latestPrice - previousPrice
+        let changePercent = previousPrice == 0 ? 0 : (change / previousPrice) * 100
+
         return Stock(
             symbol: meta.symbol,
-            price: roundedPrice,
+            price: String(format: "%.2f", latestPrice),
             change: String(format: "%.2f", change),
             changePercent: String(format: "%.2f%%", changePercent),
             name: name
@@ -372,13 +208,3 @@ struct Value: Codable {
     let close: String
     let volume: String
 }
-
-//struct Stock: Identifiable {
-//    let id = UUID()
-//    let symbol: String
-//    let price: String
-//    let change: String
-//    let changePercent: String
-//    let name: String
-//}
-
